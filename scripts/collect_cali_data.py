@@ -23,19 +23,17 @@ import os
 
 cali_data_dir = "../cali_data"
 
-def sample_cali_data_per_batch(input_list_per_batch, batch_size=32, cls_per_bsz=8):
+def sample_cali_data_per_batch(input_list_per_batch, batch_size=32):
     """
     x: (N, C, H, W), t: (N,), y: (N,).
     """
     timesteps = len(input_list_per_batch)
-    samples_per_cls = batch_size // cls_per_bsz # 4
     cali_data = []
-    for cls_idx in range(cls_per_bsz): # [0, 8)
-        unique_t = np.random.choice(range(0, timesteps), samples_per_cls, replace=False)
-        for i, t in enumerate(unique_t):
-            samples_t = input_list_per_batch[t]
-            idx = cls_idx * samples_per_cls + i
-            cali_data.append([samples_t[0][idx], samples_t[1][idx], samples_t[2][idx]])
+    unique_t = np.random.choice(range(0, timesteps), batch_size, replace=False)
+    for idx in range(batch_size):
+        t = unique_t[idx]
+        samples_t = input_list_per_batch[t]
+        cali_data.append([samples_t[0][idx], samples_t[1][idx], samples_t[2][idx]])
             
     return [torch.stack([sample[i] for sample in cali_data]) for i in range(len(cali_data[0]))]
 
@@ -69,18 +67,12 @@ def main(args):
     
     iterations = int(math.ceil(args.num_cali_data / args.batch_size))
     pbar = range(iterations)
-    # pbar = range(2)
     pbar = tqdm(pbar)
-    samples_per_cls = args.num_cali_data // args.num_classes # 4
-    cls_per_bsz = args.batch_size // samples_per_cls # 8
     cali_data = []
     for batch_idx in pbar:
         # Sample inputs:
         z = torch.randn(args.batch_size, model.in_channels, latent_size, latent_size, device=device)
-        y = torch.tensor([])
-        for i in range(cls_per_bsz):
-            y = torch.cat([y, torch.tensor([batch_idx * cls_per_bsz + i] * samples_per_cls)], dim=0)
-        y = y.to(device=device, dtype=torch.int)
+        y = torch.randint(0, args.num_classes, (args.batch_size,), device=device)
 
         # Setup classifier-free guidance:
         if using_cfg:
@@ -88,10 +80,8 @@ def main(args):
             y_null = torch.tensor([1000] * args.batch_size, device=device)
             y = torch.cat([y, y_null], 0)
             model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
-            # sample_fn = model.forward_with_cfg
         else:
             model_kwargs = dict(y=y)
-            # sample_fn = model.forward
         samples = diffusion.ddim_sample_loop(
             model, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=False, device=device
         )
@@ -102,7 +92,7 @@ def main(args):
         samples = torch.clamp(127.5 * samples + 128.0, 0, 255).permute(0, 2, 3, 1).to("cpu", dtype=torch.uint8).numpy()
 
         input_list = model.get_input_list()
-        cali_data_per_batch = sample_cali_data_per_batch(input_list, batch_size=args.batch_size, cls_per_bsz=cls_per_bsz)
+        cali_data_per_batch = sample_cali_data_per_batch(input_list, batch_size=args.batch_size)
         cali_data.append(cali_data_per_batch)
         model.reset_input_list()
     
@@ -121,9 +111,9 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="mse")
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-classes", type=int, default=1000)
-    parser.add_argument("--num-cali-data", type=int, default=1000)
+    parser.add_argument("--num-cali-data", type=int, default=256)
     parser.add_argument("--cfg-scale", type=float, default=1.5)
     parser.add_argument("--num-sampling-steps", type=int, default=50)
     parser.add_argument("--seed", type=int, default=0)

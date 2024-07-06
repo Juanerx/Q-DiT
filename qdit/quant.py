@@ -227,6 +227,7 @@ class Quantizer(nn.Module):
         assert self.args.a_sym == False
 
         hidden_states = hidden_states.view(-1, savedShape[-1])
+        selected_states = hidden_states.clone()
 
         if self.args.act_group_size > 0:
             selected_states = selected_states.reshape(-1, self.args.act_group_size)

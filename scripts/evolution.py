@@ -418,7 +418,7 @@ def create_argparser():
         help='Determine the mapped data format by quant_type + n_bits. e.g. int8, fp4.'
     )
     parser.add_argument(
-        '--calib_data_path', type=str, default='../cali_data/cali_data_4000.pth',
+        '--calib_data_path', type=str, default='../cali_data/cali_data_256.pth',
         help='Path to store the reordering indices and quantized weights.'
     )
     # Inherited from DiT

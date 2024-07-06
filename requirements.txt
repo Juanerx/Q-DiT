@@ -1,0 +1,7 @@
+torch
+torchvision
+timm
+diffusers
+transformers
+accelerate
+pytorch_lightning
