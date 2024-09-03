@@ -1,7 +1,7 @@
 #!/bin/bash
 
-QUANT_FLAGS="--wbits 4 --abits 8 --w_sym --a_sym \
-            --act_group_size 128 --weight_group_size 128 \
+QUANT_FLAGS="--wbits 4 --abits 8 \
+            --act_group_size 128 --weight_group_size 128 --use_gptq \
             --quant_method max \
             --calib_data_path ../cali_data/cali_data_256.pth"
 
